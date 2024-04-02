@@ -1,0 +1,76 @@
+#include <SPI.h> 
+#include <nRF24L01.h> 
+#include <RF24.h> RF24 radio(7,8); int sensor = A1; int sensorvalue; int percentage; const byte address[6] = "00001"; void setup() { 
+radio.begin(); radio.openWritingPipe(address); radio.setPALevel(RF24_PA_MIN); radio.stopListening(); pinMode(sensor, INPUT); 
+} void loop() { sensorvalue = analogRead(sensor); percentage = map(sensorvalue,860,436,0,100); radio.write(&percentage, sizeof(percentage)); 
+} 
+ 
+
+#include <SoftwareSerial.h> 
+SoftwareSerial espSerial = SoftwareSerial(2,3); // arduino RX pin=2 arduino TX pin=3 connect the arduino 
+RX pin to esp8266 module TX pin - connect the arduino TX pin to esp8266 module RX pin 
+#include <SimpleDHT.h> 
+#include <ESP8266_Lib.h> 
+#include <SPI.h> 
+#include <nRF24L01.h> 
+#include <RF24.h> RF24 radio(7,8);// ce cns// const byte address[6] = "00001"; int value; int pinDHT11 = 4; 
+SimpleDHT11 dht11(pinDHT11); 
+
+#de ne ESP8266_BAUD 9600 ESP8266 wi (&espSerial); boolean DEBUG=true; 
+//======================================================================== 
+ showResponce void showResponse(int waitTime){ 
+long t=millis(); char c; while (t+waitTime>millis()){ if (espSerial.available()){ c=espSerial.read(); if (DEBUG) Serial.print(c); 
+} 
+} 
+  
+} 
+//======================================================================== boolean thingSpeakWrite( oat value1, oat value2, oat value3){ String cmd = "AT+CIPSTART=\"TCP\",\""; // TCP connection cmd += "184.106.153.149"; // api.thingspeak.com 
+cmd += "\",80"; espSerial.println(cmd); if (DEBUG) Serial.println(cmd); if(espSerial. nd("Error")){ if (DEBUG) Serial.println("AT+CIPSTART error"); return false; 
+} 
+String getStr = "GET /update?api_key="; // prepare GET string getStr += apiKey; getStr +="& eld1="; getStr += String(value1); getStr +="& eld2="; getStr += String(value2); getStr +="& eld3="; getStr += String(value3); 
+// ... 
+getStr += "\r\n\r\n\r\n"; // send data length cmd = "AT+CIPSEND="; cmd += String(getStr.length()); espSerial.println(cmd); if (DEBUG) Serial.println(cmd); delay(100); if(espSerial. nd(">")){ espSerial.print(getStr); if (DEBUG) Serial.print(getStr); 
+} else{ espSerial.println("AT+CIPCLOSE"); 
+// alert user if (DEBUG) Serial.println("AT+CIPCLOSE"); return false; 
+} return true; 
+} 
+//================================================================================ setup void setup() { 
+DEBUG=true; // enable debug serial Serial.begin(9600); radio.begin(); radio.openReadingPipe(0, address); radio.setPALevel(RF24_PA_MIN); radio.startListening(); //pinMode(Temp_pin, INPUT); pinMode(pinDHT11, INPUT); //pinMode(Relay_Pin, OUTPUT); espSerial.begin(9600); // enable software serial 
+// Your esp8266 module's speed is probably at 115200. 
+// For this reason the rst time set the speed to 115200 or to your esp8266 con gured speed 
+// and upload. Then change to 9600 and upload again
+} 
+// ====================================================================== loop 
+void loop() { byte temperature = 0; byte humidity = 0; int err = SimpleDHTErrSuccess; if ((err = dht11.read(&temperature, &humidity, NULL)) != SimpleDHTErrSuccess) { Serial.print("Read DHT11 failed, err="); Serial.println(err);delay(1000); return; 
+} 
+ 
+#de ne BLYNK_PRINT Serial // Comment this out to disable prints and save space 
+#include <BlynkSimpleEsp8266.h> 
+#include "ThingSpeak.h" 
+#include <ESP8266WiFi.h> //Replace your wi credentials here char auth[] = "DcosB4cnDVf5Kiuli1_v9dj6tgrrU5Ta"; const char* ssid = "Nahu55";//Replace with your Wi Name const char* password = "123456789";// Replace with your wi Password 
+//change your channel number here unsigned long channel = 1090610;//Replace with your own ThingSpeak Account Channle ID 
+//1,2 and 3 are channel elds. You don't need to change if you are following this tutorial. However, you can modify it according to your application 
+unsigned int Temperature = 1; unsigned int Humidity = 2; unsigned int Soil = 3; unsigned int Relay = 4; WiFiClient client; void setup() { Serial.begin(9600); delay(100); pinMode(D8, OUTPUT); 
+//digitalWrite(D0, 0); 
+Blynk.begin(auth, ssid, password); 
+// We start by connecting to a WiFi network 
+ThingSpeak.begin(client); 
+}{ 
+//get the last data of the elds 
+ int Temperature_1 = ThingSpeak.readFloatField(channel, Temperature); 
+ int Humidity_2 = ThingSpeak.readFloatField(channel, Humidity); 
+ int Soil_3 = ThingSpeak.readFloatField(channel, Soil);  int Relay_4 = ThingSpeak.readFloatField(channel, Relay); if(Soil_3 <= 60){ digitalWrite(D8, 1); 
+Serial.println("Motor Is On"); 
+ 
+Serial.println("Motor is Off"); 
+} 
+Serial.println ("Temperature:");  
+Serial.println(Temperature_1); Serial.println("Humidity:"); Serial.println(Humidity_2); 
+Serial.println ("Soil Moisture Percentage");  
+Serial.println(Soil_3); 
+Serial.println("Relay situation"); Serial.println(Relay_4); delay(2000); 
+Blynk.virtualWrite(V1, Temperature_1); 
+Blynk.virtualWrite(V2, Humidity_2); 
+Blynk.virtualWrite(V3, Soil_3); 
+Blynk.run(); 
+ 
